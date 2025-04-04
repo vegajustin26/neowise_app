@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 from streamlit_float import *
 
 
-st.set_page_config(page_title="Hostless", page_icon="❌", layout = "wide")
+st.set_page_config(page_title="Hostless", page_icon="🌌", layout = "wide")
 
 ## Check if the user is logged in
 login_page = st.Page("./pages/login.py", title = "Login")

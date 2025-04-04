@@ -1,5 +1,6 @@
 import streamlit as st
 
+st.set_page_config(page_title="Quick Start", page_icon="🏁", layout = "wide")
 st.markdown("# Quick Start")
 ## Check if the user is logged in
 login_page = st.Page("./pages/login.py", title = "Login")
