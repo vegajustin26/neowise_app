@@ -181,7 +181,7 @@ def plot_triplet(i, candid, sci, ref, diff):
     
     return fig
 
-@st.cache_data
+
 def insert_candidate(_engine, source, candid):
     
     max_id = get_id(_engine, source)
