@@ -37,7 +37,7 @@ Each triplet plot shows three images:
 - **Difference**: The difference "subtracted" image of the two.
 
 ### Sections:
-- **Review** lets you review the transients that have already been classified. If you see one that looks like it should have a different label, hit the incorrect button! It should then populate in the **Misclassified** section.
+- **Review** lets you review the transients that have already been classified. If you see one that looks like it should have a different label, hit the "incorrect" button! It should then populate in the **Misclassified** section.
 - The ***Hostless Scan*** scans the database for images that haven't been classified yet, given the following search parameters:
     - Epochs are the different periods of time when neoWISE was observing (from 0-17)
     - Galactic latitude is the *absolute* angle of the object in the sky, with 0 degrees being the galactic plane and 90 degrees being the north galactic pole.

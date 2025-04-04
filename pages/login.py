@@ -31,7 +31,7 @@ elif st.session_state.authentication_status is False:
     st.error("Incorrect username or password")
 else:
     text = """
-    For read-access for the app, use 'visitor' as both the username and password.
+    For read-access for the app, use 'visitor' as both the username and password.\n
     For write-access, contact me (Justin) for an account.
     """
     st.info(text)
