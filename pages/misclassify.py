@@ -133,14 +133,33 @@ def plot_triplet(i, candid, sci, ref, diff):
     return fig
 
 try:
-    record_df = pd.read_csv("log.csv", dtype = str)
-    incorrect_candids = record_df["candid"].tolist()
+    # record_df = pd.read_csv("log.csv", dtype = str)
+    # incorrect_candids = record_df["candid"].tolist()
     
-    dup_candids, source1, source2 = np.loadtxt("duplicates.txt", dtype = str, delimiter=",", unpack = True, ndmin = 1)
+    # dup_candids, source1, source2 = np.loadtxt("duplicates.txt", dtype = str, delimiter=",", unpack = True, ndmin = 1)
         
-    filtered_cands = list(set(incorrect_candids).difference(dup_candids))
+    # filtered_cands = list(set(incorrect_candids).difference(dup_candids))
     
-    candids, sci, ref, diff, params = get_images_from_db(filtered_cands)
+    st.text("To visualize misclassifications from the model, upload a CSV file with the following columns: candid, True_Label, Predicted_Label")
+    uploaded_file = st.file_uploader("Choose a file")
+    if uploaded_file is not None:
+        pred_csv = pd.read_csv(uploaded_file)
+    
+        try:
+            misclassify = pred_csv[pred_csv['True_Label'] != pred_csv['Predicted_Label']]
+            cands = misclassify["candid"].values
+            pred_labels = misclassify["Predicted_Label"].values
+            true_labels = misclassify["True_Label"].values
+        except:
+            st.write("Format of CSV is incorrect. Please upload a CSV with the following columns: candid, True_Label, Predicted_Label.")
+            st.stop()
+    
+    # artifact is 0, reals is 1, highpm is 2, echo is 3
+    true_labels_str = np.where(true_labels == 0, "artifact", np.where(true_labels == 1, "reals", np.where(true_labels == 2, "highpm", np.where(true_labels == 3, "echo", False))))
+    pred_labels_str = np.where(pred_labels == 0, "artifact", np.where(pred_labels == 1, "reals", np.where(pred_labels == 2, "highpm", np.where(pred_labels == 3, "echo", False))))
+    
+    
+    candids, sci, ref, diff, params = get_images_from_db(cands)
     
 except:
     st.write("No misclassified images found.")
@@ -270,73 +289,144 @@ def change_class(engine, candid, old_source, new_source):
                 st.toast(f"Could not reclassify candidate {candid} as {new_source}.")
                 st.stop()
 
+def find_label(candid, pred_csv = pred_csv):
+    # st.toast(type(candid))
+    cand_row = pred_csv[pred_csv["candid"] == candid]
+    pred = cand_row["Predicted_Label"].values[0]
+    true = cand_row["True_Label"].values[0]
+    classes = ["artifact", "reals", "highpm", "echo"]
+    
+    return(classes[pred], classes[true])
 
-def page_load(page):
+
+
+# def page_load(page):
+#     if page == page_list[-1]: # if last page, then only load the remaining images
+#         for i in range(img_ppage*(page-1), len(candids)):
+#             current_source = locate_candidate(engine, candids[i])[0]
+#             st.header(f"{i} - classified as {current_source} (likely {source1[i]} or {source2[i]})")
+#             fig = plot_triplet(i, candids[i], sci[i], ref[i], diff[i])
+#             st.pyplot(fig)
+#             col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
+#             with col1:
+#                 if st.button("Artifact", key = i):
+#                     change_class(engine, candids[i], current_source, "artifact")
+#                     st.rerun()
+#             with col2:
+#                 if st.button("Real", key = i+1e5):
+#                     change_class(engine, candids[i], current_source, "reals")
+#                     st.rerun()
+#             with col3:
+#                 if st.button("Echo", key = i+2e5):
+#                     change_class(engine, candids[i], current_source, "echo")
+#                     st.rerun()
+#             with col4:
+#                 if st.button("High PM", key = i+3e5):
+#                     change_class(engine, candids[i], current_source, "highpm")
+#                     st.rerun()
+#             with col5:
+#                 if st.button("Delete", key = i+4e5):
+#                     delete_candidate(engine, current_source, candids[i], write = True)
+#                     st.rerun() 
+#             ra, dec = get_ra_dec(candids[i])
+#             byworlds = f"http://byw.tools/wiseview#ra={ra}&dec={dec}&size=176&band=2&speed=234.62&minbright=-2.3497&maxbright=963.1413&window=0.09958&diff_window=1&linear=1&color=&zoom=10&border=0&gaia=0&invert=0&maxdyr=0&scandir=0&neowise=0&diff=0&outer_epochs=0&unique_window=1&smooth_scan=0&shift=0&pmra=0&pmdec=0&synth_a=0&synth_a_sub=0&synth_a_ra=&synth_a_dec=&synth_a_w1=&synth_a_w2=&synth_a_pmra=0&synth_a_pmdec=0&synth_a_mjd=&synth_b=0&synth_b_sub=0&synth_b_ra=&synth_b_dec=&synth_b_w1=&synth_b_w2=&synth_b_pmra=0&synth_b_pmdec=0&synth_b_mjd="
+#             st.link_button("See in BYW", url = byworlds)
+#     else: # load 100 images per page
+#         for img in range(img_ppage*(page-1), img_ppage*page):
+#             current_source = locate_candidate(engine, candids[img])[0]
+#             st.header(f"{img} - classified as {current_source}")
+#             fig = plot_triplet(img, candids[img], sci[img], ref[img], diff[img])
+#             st.pyplot(fig)
+#             col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
+#             with col1:
+#                 if st.button("Artifact", key = img):
+#                     change_class(engine, candids[img], current_source, "artifact")
+#                     st.rerun()
+#             with col2:
+#                 if st.button("Real", key = img+1e5):
+#                     change_class(engine, candids[img], current_source, "reals")
+#                     st.rerun()
+#             with col3:
+#                 if st.button("Echo", key = img+2e5):
+#                     change_class(engine, candids[img], current_source, "echo")
+#                     st.rerun()
+#             with col4:
+#                 if st.button("High PM", key = img+3e5):
+#                     change_class(engine, candids[img], current_source, "highpm")
+#                     st.rerun()
+#             with col5:
+#                 if st.button("Delete", key = img+4e5):
+#                     delete_candidate(engine, current_source, candids[img], write = True)
+#                     st.rerun()
+#             ra, dec = get_ra_dec(candids[img])
+#             byworlds = f"http://byw.tools/wiseview#ra={ra}&dec={dec}&size=176&band=2&speed=234.62&minbright=-2.3497&maxbright=963.1413&window=0.09958&diff_window=1&linear=1&color=&zoom=10&border=0&gaia=0&invert=0&maxdyr=0&scandir=0&neowise=0&diff=0&outer_epochs=0&unique_window=1&smooth_scan=0&shift=0&pmra=0&pmdec=0&synth_a=0&synth_a_sub=0&synth_a_ra=&synth_a_dec=&synth_a_w1=&synth_a_w2=&synth_a_pmra=0&synth_a_pmdec=0&synth_a_mjd=&synth_b=0&synth_b_sub=0&synth_b_ra=&synth_b_dec=&synth_b_w1=&synth_b_w2=&synth_b_pmra=0&synth_b_pmdec=0&synth_b_mjd="
+#             st.link_button("See in BYW", url = byworlds)
+
+def page_load_model_misclass(page):
     if page == page_list[-1]: # if last page, then only load the remaining images
         for i in range(img_ppage*(page-1), len(candids)):
             current_source = locate_candidate(engine, candids[i])[0]
-            st.header(f"{i} - classified as {current_source} (likely {source1[i]} or {source2[i]})")
+            # st.header(f"{i} - classified as {current_source} (likely {source1[i]} or {source2[i]})")
             fig = plot_triplet(i, candids[i], sci[i], ref[i], diff[i])
             st.pyplot(fig)
-            col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
-            with col1:
-                if st.button("Artifact", key = i):
-                    change_class(engine, candids[i], current_source, "artifact")
-                    st.rerun()
-            with col2:
-                if st.button("Real", key = i+1e5):
-                    change_class(engine, candids[i], current_source, "reals")
-                    st.rerun()
-            with col3:
-                if st.button("Echo", key = i+2e5):
-                    change_class(engine, candids[i], current_source, "echo")
-                    st.rerun()
-            with col4:
-                if st.button("High PM", key = i+3e5):
-                    change_class(engine, candids[i], current_source, "highpm")
-                    st.rerun()
-            with col5:
-                if st.button("Delete", key = i+4e5):
-                    delete_candidate(engine, current_source, candids[i], write = True)
-                    st.rerun() 
+            # col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
+            # with col1:
+            #     if st.button("Artifact", key = i):
+            #         change_class(engine, candids[i], current_source, "artifact")
+            #         st.rerun()
+            # with col2:
+            #     if st.button("Real", key = i+1e5):
+            #         change_class(engine, candids[i], current_source, "reals")
+            #         st.rerun()
+            # with col3:
+            #     if st.button("Echo", key = i+2e5):
+            #         change_class(engine, candids[i], current_source, "echo")
+            #         st.rerun()
+            # with col4:
+            #     if st.button("High PM", key = i+3e5):
+            #         change_class(engine, candids[i], current_source, "highpm")
+            #         st.rerun()
+            # with col5:
+            #     if st.button("Delete", key = i+4e5):
+            #         delete_candidate(engine, current_source, candids[i], write = True)
+            #         st.rerun() 
             ra, dec = get_ra_dec(candids[i])
             byworlds = f"http://byw.tools/wiseview#ra={ra}&dec={dec}&size=176&band=2&speed=234.62&minbright=-2.3497&maxbright=963.1413&window=0.09958&diff_window=1&linear=1&color=&zoom=10&border=0&gaia=0&invert=0&maxdyr=0&scandir=0&neowise=0&diff=0&outer_epochs=0&unique_window=1&smooth_scan=0&shift=0&pmra=0&pmdec=0&synth_a=0&synth_a_sub=0&synth_a_ra=&synth_a_dec=&synth_a_w1=&synth_a_w2=&synth_a_pmra=0&synth_a_pmdec=0&synth_a_mjd=&synth_b=0&synth_b_sub=0&synth_b_ra=&synth_b_dec=&synth_b_w1=&synth_b_w2=&synth_b_pmra=0&synth_b_pmdec=0&synth_b_mjd="
             st.link_button("See in BYW", url = byworlds)
     else: # load 100 images per page
         for img in range(img_ppage*(page-1), img_ppage*page):
-            current_source = locate_candidate(engine, candids[img])[0]
-            st.header(f"{img} - classified as {current_source}")
+            pred, true = find_label(candids[img])
+            # true = true_labels_str[img]
+            st.header(f"{img} - predicted {pred} (true {true})")
             fig = plot_triplet(img, candids[img], sci[img], ref[img], diff[img])
             st.pyplot(fig)
-            col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
-            with col1:
-                if st.button("Artifact", key = img):
-                    change_class(engine, candids[img], current_source, "artifact")
-                    st.rerun()
-            with col2:
-                if st.button("Real", key = img+1e5):
-                    change_class(engine, candids[img], current_source, "reals")
-                    st.rerun()
-            with col3:
-                if st.button("Echo", key = img+2e5):
-                    change_class(engine, candids[img], current_source, "echo")
-                    st.rerun()
-            with col4:
-                if st.button("High PM", key = img+3e5):
-                    change_class(engine, candids[img], current_source, "highpm")
-                    st.rerun()
-            with col5:
-                if st.button("Delete", key = img+4e5):
-                    delete_candidate(engine, current_source, candids[img], write = True)
-                    st.rerun()
+            # col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
+            # with col1:
+            #     if st.button("Artifact", key = img):
+            #         change_class(engine, candids[img], current_source, "artifact")
+            #         st.rerun()
+            # with col2:
+            #     if st.button("Real", key = img+1e5):
+            #         change_class(engine, candids[img], current_source, "reals")
+            #         st.rerun()
+            # with col3:
+            #     if st.button("Echo", key = img+2e5):
+            #         change_class(engine, candids[img], current_source, "echo")
+            #         st.rerun()
+            # with col4:
+            #     if st.button("High PM", key = img+3e5):
+            #         change_class(engine, candids[img], current_source, "highpm")
+            #         st.rerun()
+            # with col5:
+            #     if st.button("Delete", key = img+4e5):
+            #         delete_candidate(engine, current_source, candids[img], write = True)
+            #         st.rerun()
             ra, dec = get_ra_dec(candids[img])
             byworlds = f"http://byw.tools/wiseview#ra={ra}&dec={dec}&size=176&band=2&speed=234.62&minbright=-2.3497&maxbright=963.1413&window=0.09958&diff_window=1&linear=1&color=&zoom=10&border=0&gaia=0&invert=0&maxdyr=0&scandir=0&neowise=0&diff=0&outer_epochs=0&unique_window=1&smooth_scan=0&shift=0&pmra=0&pmdec=0&synth_a=0&synth_a_sub=0&synth_a_ra=&synth_a_dec=&synth_a_w1=&synth_a_w2=&synth_a_pmra=0&synth_a_pmdec=0&synth_a_mjd=&synth_b=0&synth_b_sub=0&synth_b_ra=&synth_b_dec=&synth_b_w1=&synth_b_w2=&synth_b_pmra=0&synth_b_pmdec=0&synth_b_mjd="
             st.link_button("See in BYW", url = byworlds)
 
-st.write("#")
-st.write("###")
 st.title("Misclassified")
 
-page_load(page)
+page_load_model_misclass(page)
 
     
