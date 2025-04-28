@@ -42,7 +42,7 @@ with st.form("my_form"):
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        scanep = st.text_input("Epoch ID (0-17)", value = 10, key = "scanep")
+        scanep = st.text_input("Epoch ID (0-17)", value = 8, key = "scanep")
     with col2:
         gallimlow = st.text_input("Galactic Latitude (degrees)", value = 0, key = "gallimlow")
     with col3:
