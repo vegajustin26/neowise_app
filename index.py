@@ -14,10 +14,12 @@ if st.session_state.logged_in:
             st.Page("./pages/highpm.py", title = "High Proper Motion"),
             st.Page("./pages/reals.py", title = "Reals"),
             st.Page("./pages/stats.py", title = "Classified Stats"),
+            st.Page("./pages/viz.py", title = "Visualization"),
         ],
         "Classify": [
             st.Page("./pages/hostless.py", title = "Hostless Scan"),
-            st.Page("./pages/misclassify.py", title = "Misclassified (Manually Selected)"),
+            st.Page("./pages/misclassify.py", title = "Misclassified (Manual Input)"),
+            st.Page("./pages/misclassify_model.py", title = "Misclassified (Model)"),
             st.Page("./pages/duplicates.py", title = "Duplicates (across Multiple Classes)"),
         ]
     }
@@ -27,7 +29,7 @@ if st.session_state.logged_in:
         pg = st.navigation(pages)    
     else:
         del pages["Review"][-1]
-        del pages["Classify"][1:3]
+        del pages["Classify"][1:4]
         pg = st.navigation(pages)
 else:
     login_page = st.Page("./pages/login.py", title = "Login")
