@@ -3,7 +3,7 @@ name: Justin's Daily Commit
 on:
   schedule:
     - cron: '0 0 * * *'  # Every day at midnight UTC to runs every 7-8 min set cron to '*/1 * * * *'
-
+  workflow_dispatch: # Allows manual triggering of the workflow
 jobs:
   commit:
     runs-on: ubuntu-latest
