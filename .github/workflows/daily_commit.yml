@@ -34,6 +34,6 @@ jobs:
         git config --global user.email "vegajustin26@gmail.com"
         git add "$FILE"
         git commit -m "$COMMIT_MESSAGE"
-        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/vegajustin26/wise_app.git
+        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/vegajustin26/neowise_app.git
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
