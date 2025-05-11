@@ -20,6 +20,7 @@ jobs:
         if [ ! -f "$FILE" ]; then
           echo "This is Justin" > "$FILE"
           echo "commit number: 1" >> "$FILE"
+          COMMIT_MESSAGE="daily commit #1"
         else
           CURRENT_COUNT=$(grep -oP 'commit number: \K\d+' "$FILE")
           if [ -z "$CURRENT_COUNT" ]; then
