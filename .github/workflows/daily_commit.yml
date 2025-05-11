@@ -16,7 +16,8 @@ jobs:
 
     - name: Create file and commit
       run: |
-        FILE="commit_number.md"
+        GITHUB_DIR=".github" # Define the .github directory
+        FILE="$GITHUB_DIR/commit_number.md" # Update the FILE path
         if [ ! -f "$FILE" ]; then
           echo "This is Justin" > "$FILE"
           echo "commit number: 1" >> "$FILE"
