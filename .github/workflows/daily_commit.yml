@@ -1,0 +1,38 @@
+name: Justin's Daily Commit
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Every day at midnight UTC to runs every 7-8 min set cron to '*/1 * * * *'
+
+jobs:
+  commit:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        ref: main 
+
+    - name: Create file and commit
+      run: |
+        FILE="commit_number.md"
+        if [ ! -f "$FILE" ]; then
+          echo "This is Justin" > "$FILE"
+          echo "commit number: 1" >> "$FILE"
+        else
+          CURRENT_COUNT=$(grep -oP 'commit number: \K\d+' "$FILE")
+          if [ -z "$CURRENT_COUNT" ]; then
+            CURRENT_COUNT=0
+          fi
+          NEXT_COUNT=$((CURRENT_COUNT + 1))
+          sed -i "/commit number: /c\commit number: $NEXT_COUNT" "$FILE"
+          COMMIT_MESSAGE="daily commit #$NEXT_COUNT"
+        fi
+        git config --global user.name "vegajustin26"
+        git config --global user.email "vegajustin26@gmail.com"
+        git add "$FILE"
+        git commit -m "$COMMIT_MESSAGE"
+        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/vegajustin26/wise_app.git
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

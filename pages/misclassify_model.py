@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, text, delete, insert, MetaData
 from astropy.stats import sigma_clipped_stats as scs
 import matplotlib.pyplot as plt
 from streamlit_float import *
+plt.rcParams['figure.max_open_warning'] = 101 
 
 st.set_page_config(page_title="Misclassified", page_icon="❌", layout = "wide")
 
@@ -155,8 +156,8 @@ try:
             st.stop()
     
     # artifact is 0, reals is 1, highpm is 2, echo is 3
-    true_labels_str = np.where(true_labels == 0, "artifact", np.where(true_labels == 1, "reals", np.where(true_labels == 2, "highpm", np.where(true_labels == 3, "echo", False))))
-    pred_labels_str = np.where(pred_labels == 0, "artifact", np.where(pred_labels == 1, "reals", np.where(pred_labels == 2, "highpm", np.where(pred_labels == 3, "echo", False))))
+    # true_labels_str = np.where(true_labels == 0, "artifact", np.where(true_labels == 1, "reals", np.where(true_labels == 2, "highpm", np.where(true_labels == 3, "echo", False))))
+    # pred_labels_str = np.where(pred_labels == 0, "artifact", np.where(pred_labels == 1, "reals", np.where(pred_labels == 2, "highpm", np.where(pred_labels == 3, "echo", False))))
     
     
     candids, sci, ref, diff, params = get_images_from_db(cands)
@@ -294,9 +295,8 @@ def find_label(candid, pred_csv = pred_csv):
     cand_row = pred_csv[pred_csv["candid"] == candid]
     pred = cand_row["Predicted_Label"].values[0]
     true = cand_row["True_Label"].values[0]
-    classes = ["artifact", "reals", "highpm", "echo"]
     
-    return(classes[pred], classes[true])
+    return(pred, true)
 
 
 
