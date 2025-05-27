@@ -299,74 +299,11 @@ def find_label(candid, pred_csv = pred_csv):
     return(pred, true)
 
 
-
-# def page_load(page):
-#     if page == page_list[-1]: # if last page, then only load the remaining images
-#         for i in range(img_ppage*(page-1), len(candids)):
-#             current_source = locate_candidate(engine, candids[i])[0]
-#             st.header(f"{i} - classified as {current_source} (likely {source1[i]} or {source2[i]})")
-#             fig = plot_triplet(i, candids[i], sci[i], ref[i], diff[i])
-#             st.pyplot(fig)
-#             col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
-#             with col1:
-#                 if st.button("Artifact", key = i):
-#                     change_class(engine, candids[i], current_source, "artifact")
-#                     st.rerun()
-#             with col2:
-#                 if st.button("Real", key = i+1e5):
-#                     change_class(engine, candids[i], current_source, "reals")
-#                     st.rerun()
-#             with col3:
-#                 if st.button("Echo", key = i+2e5):
-#                     change_class(engine, candids[i], current_source, "echo")
-#                     st.rerun()
-#             with col4:
-#                 if st.button("High PM", key = i+3e5):
-#                     change_class(engine, candids[i], current_source, "highpm")
-#                     st.rerun()
-#             with col5:
-#                 if st.button("Delete", key = i+4e5):
-#                     delete_candidate(engine, current_source, candids[i], write = True)
-#                     st.rerun() 
-#             ra, dec = get_ra_dec(candids[i])
-#             byworlds = f"http://byw.tools/wiseview#ra={ra}&dec={dec}&size=176&band=2&speed=234.62&minbright=-2.3497&maxbright=963.1413&window=0.09958&diff_window=1&linear=1&color=&zoom=10&border=0&gaia=0&invert=0&maxdyr=0&scandir=0&neowise=0&diff=0&outer_epochs=0&unique_window=1&smooth_scan=0&shift=0&pmra=0&pmdec=0&synth_a=0&synth_a_sub=0&synth_a_ra=&synth_a_dec=&synth_a_w1=&synth_a_w2=&synth_a_pmra=0&synth_a_pmdec=0&synth_a_mjd=&synth_b=0&synth_b_sub=0&synth_b_ra=&synth_b_dec=&synth_b_w1=&synth_b_w2=&synth_b_pmra=0&synth_b_pmdec=0&synth_b_mjd="
-#             st.link_button("See in BYW", url = byworlds)
-#     else: # load 100 images per page
-#         for img in range(img_ppage*(page-1), img_ppage*page):
-#             current_source = locate_candidate(engine, candids[img])[0]
-#             st.header(f"{img} - classified as {current_source}")
-#             fig = plot_triplet(img, candids[img], sci[img], ref[img], diff[img])
-#             st.pyplot(fig)
-#             col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
-#             with col1:
-#                 if st.button("Artifact", key = img):
-#                     change_class(engine, candids[img], current_source, "artifact")
-#                     st.rerun()
-#             with col2:
-#                 if st.button("Real", key = img+1e5):
-#                     change_class(engine, candids[img], current_source, "reals")
-#                     st.rerun()
-#             with col3:
-#                 if st.button("Echo", key = img+2e5):
-#                     change_class(engine, candids[img], current_source, "echo")
-#                     st.rerun()
-#             with col4:
-#                 if st.button("High PM", key = img+3e5):
-#                     change_class(engine, candids[img], current_source, "highpm")
-#                     st.rerun()
-#             with col5:
-#                 if st.button("Delete", key = img+4e5):
-#                     delete_candidate(engine, current_source, candids[img], write = True)
-#                     st.rerun()
-#             ra, dec = get_ra_dec(candids[img])
-#             byworlds = f"http://byw.tools/wiseview#ra={ra}&dec={dec}&size=176&band=2&speed=234.62&minbright=-2.3497&maxbright=963.1413&window=0.09958&diff_window=1&linear=1&color=&zoom=10&border=0&gaia=0&invert=0&maxdyr=0&scandir=0&neowise=0&diff=0&outer_epochs=0&unique_window=1&smooth_scan=0&shift=0&pmra=0&pmdec=0&synth_a=0&synth_a_sub=0&synth_a_ra=&synth_a_dec=&synth_a_w1=&synth_a_w2=&synth_a_pmra=0&synth_a_pmdec=0&synth_a_mjd=&synth_b=0&synth_b_sub=0&synth_b_ra=&synth_b_dec=&synth_b_w1=&synth_b_w2=&synth_b_pmra=0&synth_b_pmdec=0&synth_b_mjd="
-#             st.link_button("See in BYW", url = byworlds)
-
 def page_load_model_misclass(page):
     if page == page_list[-1]: # if last page, then only load the remaining images
         for i in range(img_ppage*(page-1), len(candids)):
-            current_source = locate_candidate(engine, candids[i])[0]
-            # st.header(f"{i} - classified as {current_source} (likely {source1[i]} or {source2[i]})")
+            pred, true = find_label(candids[i])
+            st.header(f"{i} - predicted {pred} (true {true})")
             fig = plot_triplet(i, candids[i], sci[i], ref[i], diff[i])
             st.pyplot(fig)
             # col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
@@ -396,7 +333,6 @@ def page_load_model_misclass(page):
     else: # load 100 images per page
         for img in range(img_ppage*(page-1), img_ppage*page):
             pred, true = find_label(candids[img])
-            # true = true_labels_str[img]
             st.header(f"{img} - predicted {pred} (true {true})")
             fig = plot_triplet(img, candids[img], sci[img], ref[img], diff[img])
             st.pyplot(fig)

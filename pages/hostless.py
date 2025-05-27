@@ -102,8 +102,10 @@ def hostless_candids(scanep, gallimlow, gallimhigh, candlim):
     
     with engine.connect() as con:
         try:
+            st.toast(f"Executing query...")
             result = con.execute(text(query))
             candids = [i for candid in result.fetchall() for i in candid]
+            st.toast(f"Found {len(candids)} candidates.")
         except:
             st.toast(f"Could not get candidates.")
             st.stop()
