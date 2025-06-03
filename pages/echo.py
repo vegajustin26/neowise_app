@@ -8,8 +8,11 @@ from io import BytesIO
 import pandas as pd
 from sqlalchemy import create_engine
 from astropy.stats import sigma_clipped_stats as scs
+from astropy import units as u
+from astropy.coordinates import SkyCoord
 import matplotlib.pyplot as plt
 from streamlit_float import *
+import plotly.express as px
 
 st.set_page_config(page_title="Echo", page_icon="💥", layout = "wide")
 
@@ -54,11 +57,18 @@ def get_count(source):
 
 @st.cache_data
 def get_ra_dec(candid):
-    df = pd.read_sql_query(f"""
-        SELECT ra, dec from candidates WHERE candid = {candid};""", engine)
-    ra = df.ra[0]
-    dec = df.dec[0]
-    return ra, dec
+    
+    if isinstance(candid, list):
+        df = pd.read_sql_query(f"""
+            SELECT ra, dec, candid from candidates WHERE candid IN {tuple(candid)};""", engine)
+        df.columns = ["RA", "DEC", "candid"]
+        return df
+    else:
+        df = pd.read_sql_query(f"""
+            SELECT ra, dec from candidates WHERE candid = {candid};""", engine)
+        ra = df.ra[0]
+        dec = df.dec[0]
+        return ra, dec
 
 @st.cache_resource
 def get_images_from_db(source):
@@ -212,6 +222,31 @@ st.write("#")
 st.write("###")
 
 st.markdown("# Echo")
+
+if st.session_state.username == "admin":
+    echo_map = st.toggle("Show candidate map")
+    
+    if echo_map:
+        c1, c2, c3 = st.columns([1, 2, 1])
+        with c2:
+            df = get_ra_dec(candids)
+            fig = px.scatter(df, x = "RA", y = "DEC", hover_data="candid")
+            
+            casA = astropy.coordinates.SkyCoord(ra="23 23 19.57", dec="58°47'28.67", unit=(u.hourangle, u.deg))
+            
+            fig.add_scatter(x = [casA.ra.deg], y = [casA.dec.deg], marker=dict(
+                        color='red',
+                        size=10
+                    ), name = "Cas A", mode='markers')
+            fig.update_layout(
+                xaxis=dict(showgrid=False),
+                yaxis=dict(showgrid=False),
+                # showlegend=False,
+                title="RA vs DEC",
+                xaxis_title="RA (degrees)",
+                yaxis_title="DEC (degrees)",)
+            st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+
 page_load(page)
 
     

@@ -11,6 +11,8 @@ from astropy.stats import sigma_clipped_stats as scs
 import matplotlib.pyplot as plt
 from streamlit_float import *
 plt.rcParams['figure.max_open_warning'] = 101 
+import seaborn as sns
+from matplotlib import colors
 
 st.set_page_config(page_title="Misclassified", page_icon="❌", layout = "wide")
 
@@ -298,12 +300,52 @@ def find_label(candid, pred_csv = pred_csv):
     
     return(pred, true)
 
+def confusion_matrix():
+    # Create a confusion matrix
+    
+    col1, plot, col2 = st.columns([1, 2, 1])
+    
+    with plot:
+        cm = pd.crosstab(pred_csv['True_Label'], pred_csv['Predicted_Label'], rownames=['Actual'], colnames=['Predicted'], margins=False)
+        classes = pred_csv.columns[:4]
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt="d", cmap=plt.cm.Blues, cbar=False,
+                    annot_kws={"size": 12})
+        
+        cm = cm.values
+        cm_norm = cm/cm.sum(axis = 1)
+        cmap = plt.cm.Blues
+        norm = colors.Normalize(vmin=np.amin(cm), vmax=np.amax(cm))
+        for i in range(cm.shape[0]):
+            for j in range(cm.shape[1]):
+                cell_val = cm[i, j]
+                cell_color = cmap(norm(cell_val))
+                # Compute brightness from the RGB values (ignore alpha)
+                brightness = np.mean(cell_color[:3])
+                text_color = "white" if brightness < 0.5 else "black"
+                ax.text(j + 0.5, i + 0.6, f"\n({cm_norm[i,j]*100:.1f}%)", 
+                        ha="center", va="center", color=text_color, fontsize=10)
+
+        ax.set_title("Confusion Matrix")
+        ax.set_xlabel("Predicted Label")
+        ax.set_ylabel("True Label")
+        ax.xaxis.set_ticklabels(classes)
+        ax.yaxis.set_ticklabels(classes)
+        
+        st.pyplot(fig)
+    
+    # Display the confusion matrix
+    # st.write("Confusion Matrix:")
+    # st.dataframe(cm)
+
+
+
 
 def page_load_model_misclass(page):
     if page == page_list[-1]: # if last page, then only load the remaining images
         for i in range(img_ppage*(page-1), len(candids)):
             pred, true = find_label(candids[i])
-            st.header(f"{i} - predicted {pred} (true {true})")
+            st.header(f"{i} - predicted {pred} for {candids[i]} (true {true})")
             fig = plot_triplet(i, candids[i], sci[i], ref[i], diff[i])
             st.pyplot(fig)
             # col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
@@ -333,7 +375,7 @@ def page_load_model_misclass(page):
     else: # load 100 images per page
         for img in range(img_ppage*(page-1), img_ppage*page):
             pred, true = find_label(candids[img])
-            st.header(f"{img} - predicted {pred} (true {true})")
+            st.header(f"{img} - predicted {pred} for {candids[i]} (true {true})")
             fig = plot_triplet(img, candids[img], sci[img], ref[img], diff[img])
             st.pyplot(fig)
             # col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
@@ -362,7 +404,7 @@ def page_load_model_misclass(page):
             st.link_button("See in BYW", url = byworlds)
 
 st.title("Misclassified")
-
+confusion_matrix()
 page_load_model_misclass(page)
 
     

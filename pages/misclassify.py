@@ -285,8 +285,8 @@ def change_class(engine, candid, old_source, new_source):
     #     record_df.drop(index = record_df.loc[record_df["candid"] == str(candid)].index, inplace = True)
     #     record_df.to_csv("log.csv", index = False)
     # else:
-    
-    delete_candidate(engine, old_source, candid) # delete the candidate from the original source
+    if old_source:
+        delete_candidate(engine, old_source, candid) # delete the candidate from the original source
     
     with engine.connect() as con:
         try:
@@ -314,9 +314,9 @@ def page_load(page, candids):
         for i in range(img_ppage*(page-1), len(candids)):
             current_source = locate_candidate(engine, candids[i])[0]
             if current_source:
-                st.header(f"{i} - classified as {current_source}")
+                st.header(f"{candids[i]} - classified as {current_source}")
             else:
-                st.header(f"{i} - not classified")
+                st.header(f"{candids[i]} - not classified")
             fig = plot_triplet(i, candids[i], sci[i], ref[i], diff[i])
             st.pyplot(fig)
             col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
@@ -347,14 +347,19 @@ def page_load(page, candids):
     else: # load 100 images per page
         for img in range(img_ppage*(page-1), img_ppage*page):
             current_source = locate_candidate(engine, candids[img])[0]
-            st.header(f"{img} - classified as {current_source}")
+            
+            if current_source:
+                st.header(f"{candids[img]} - classified as {current_source}")
+            else:
+                st.header(f"{candids[img]} - not classified")
+            
             fig = plot_triplet(img, candids[img], sci[img], ref[img], diff[img])
             st.pyplot(fig)
             col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
             with col1:
                 if st.button("Artifact", key = img):
-                    st.toast("artifact button")
-                    # change_class(engine, candids[img], current_source, "artifact")
+                    # st.toast("artifact button")
+                    change_class(engine, candids[img], current_source, "artifact")
                     # st.rerun()
             with col2:
                 if st.button("Real", key = img+1e5):

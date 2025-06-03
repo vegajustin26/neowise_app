@@ -134,15 +134,9 @@ def plot_triplet(i, candid, sci, ref, diff):
     return fig
 
 try:
-    # record_df = pd.read_csv("log.csv", dtype = str)
-    # incorrect_candids = record_df["candid"].tolist()
-    
-    # dup_candids, source1, source2 = np.loadtxt("duplicates.txt", dtype = str, delimiter=",", unpack = True, ndmin = 1)
-        
-    # filtered_cands = list(set(incorrect_candids).difference(dup_candids))
     st.markdown('#')
     st.markdown('###')
-    st.text("Please upload list of candids separated by commas.")
+    st.text("Please upload list of candids (with brackets) separated by commas.")
     textbox = st.text_area("candids")
     button = st.button("Submit")
     if button: 
