@@ -136,10 +136,12 @@ def plot_triplet(i, candid, sci, ref, diff):
 try:
     st.markdown('#')
     st.markdown('###')
-    st.text("Please upload list of candids (with brackets) separated by commas.")
-    textbox = st.text_area("candids")
-    button = st.button("Submit")
-    if button: 
+    with st.form("search_form"):
+        st.text("Please upload list of candids (with brackets) separated by commas.")
+        textbox = st.text_area("candids")
+        # truth_check = st.checkbox("Check if the candidates are misclassified", value = True)
+        submitted = st.form_submit_button("Submit")
+    if submitted: 
         try:
             textbox_list = json.loads(str(textbox))
             candid_csv = pd.DataFrame(textbox_list, columns = ["candid"])
@@ -229,9 +231,9 @@ def page_load_model_misclass(page):
             st.link_button("See in BYW", url = byworlds)
     else: # load 100 images per page
         for img in range(img_ppage*(page-1), img_ppage*page):
-            pred, true = find_label(candids[img])
+            # pred, true = find_label(candids[img])
             # true = true_labels_str[img]
-            st.header(f"{img} - predicted {pred} (true {true})")
+            # st.header(f"{img} - predicted {pred} (true {true})")
             fig = plot_triplet(img, candids[img], sci[img], ref[img], diff[img])
             st.pyplot(fig)
             # col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])

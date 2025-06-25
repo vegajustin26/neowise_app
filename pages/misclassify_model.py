@@ -25,12 +25,16 @@ authenticator.logout("Logout", "sidebar")
 
 if st.session_state.get('authentication_status'):
     st.session_state.logged_in = True
+    
 
 if st.session_state.get('logout'):
     st.session_state.logged_in = False
     st.session_state.logout = True
     st.session_state.authentication_status = None
     st.switch_page(login_page)
+
+if "expanded" not in st.session_state:
+    st.session_state.expanded = True
 
 
 @st.cache_resource
@@ -64,7 +68,7 @@ def get_ra_dec(candid):
     return ra, dec
 
 @st.cache_data
-def get_images_from_db(incorrect_candids):
+def get_images_from_db(incorrect_candids, limit = 1000):
     
     if len(incorrect_candids) > 1:
         incorrect_candids = tuple(incorrect_candids)
@@ -72,7 +76,7 @@ def get_images_from_db(incorrect_candids):
         incorrect_candids = f"('{incorrect_candids[0]}')"
     
     images = pd.read_sql_query(f"""
-        SELECT c.candid, c.sci_image, c.ref_image, c.diff_image from cutouts c INNER JOIN (SELECT DISTINCT(candid) from candidates) s ON c.candid = s.candid WHERE c.candid IN {incorrect_candids};""", engine)
+        SELECT c.candid, c.sci_image, c.ref_image, c.diff_image from cutouts c INNER JOIN (SELECT DISTINCT(candid) from candidates) s ON c.candid = s.candid WHERE c.candid IN {incorrect_candids} LIMIT {limit};""", engine)
     
     sci_images = []
     ref_images = []
@@ -135,6 +139,15 @@ def plot_triplet(i, candid, sci, ref, diff):
     
     return fig
 
+# def submit():
+#     st.session_state.submitted = True
+
+# def reset_page():
+#     st.session_state.submitted = False
+#     cands = []
+#     st.toast(f"from button {st.session_state.submitted}")
+    # st.rerun()
+
 try:
     # record_df = pd.read_csv("log.csv", dtype = str)
     # incorrect_candids = record_df["candid"].tolist()
@@ -142,17 +155,57 @@ try:
     # dup_candids, source1, source2 = np.loadtxt("duplicates.txt", dtype = str, delimiter=",", unpack = True, ndmin = 1)
         
     # filtered_cands = list(set(incorrect_candids).difference(dup_candids))
+    st.markdown("#")
     
-    st.text("To visualize misclassifications from the model, upload a CSV file with the following columns: candid, True_Label, Predicted_Label")
-    uploaded_file = st.file_uploader("Choose a file")
-    if uploaded_file is not None:
+    with st.expander("Settings", expanded = st.session_state.expanded):
+        with st.form("search_form"):
+            st.text("To visualize misclassifications from the model, upload a CSV file with probabilities, candid, and Predicted_Label for testing, or include True_Label for training.")
+            uploaded_file = st.file_uploader("Choose a file")
+            buttons, sliders = st.columns([0.5, 0.5])
+            with buttons:
+                source = st.pills("Sources", ['reals', 'highpm', 'echo', 'artifact'], selection_mode="single")
+                truth_check = st.checkbox("Include True_Label", value = False, help = "If True_Label is included, the CSV should have columns: candid, True_Label, Predicted_Label. If False, it should have columns: candid, Predicted_Label.")
+                limit = st.number_input("Limit number of images to display", max_value=1000, value=500, help="Limit the number of images to display from the uploaded CSV file.")
+            
+            with sliders:
+                st.write("Probability Thresholds")
+                artifact_slider = st.select_slider("Artifact", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for artifacts.")
+                reals_slider = st.select_slider("Reals", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for reals.")
+                echo_slider = st.select_slider("Echo", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for echoes.")
+                highpm_slider = st.select_slider("High PM", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for high proper motion objects.")
+                hide_elements = """
+            <style>
+                div[data-testid="stSliderTickBarMin"],
+                div[data-testid="stSliderTickBarMax"] {
+                    display: none;
+                }
+            </style>"""
+                st.markdown(hide_elements, unsafe_allow_html=True)
+            
+            submitted = st.form_submit_button("Submit")
+            
+    if submitted and (uploaded_file is not None) and artifact_slider is not None:
+        # st.session_state.expanded = False
+        
+        # st.toast("File uploaded successfully.")
         pred_csv = pd.read_csv(uploaded_file)
-    
         try:
-            misclassify = pred_csv[pred_csv['True_Label'] != pred_csv['Predicted_Label']]
-            cands = misclassify["candid"].values
-            pred_labels = misclassify["Predicted_Label"].values
-            true_labels = misclassify["True_Label"].values
+            if truth_check:
+                misclassify = pred_csv[(pred_csv['True_Label'] != pred_csv['Predicted_Label']) & (pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
+                cands = misclassify["candid"].values
+                pred_labels = misclassify["Predicted_Label"].values
+                true_labels = misclassify["True_Label"].values
+            else:
+                
+                if source:
+                    pred_csv = pred_csv[(pred_csv['Predicted_Label'] == source) & (pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
+                else:
+                    pred_csv = pred_csv[(pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
+                    
+                cands = pred_csv["candid"].values
+                
+                pred_labels = pred_csv["Predicted_Label"].values
+                
         except:
             st.write("Format of CSV is incorrect. Please upload a CSV with the following columns: candid, True_Label, Predicted_Label.")
             st.stop()
@@ -160,9 +213,9 @@ try:
     # artifact is 0, reals is 1, highpm is 2, echo is 3
     # true_labels_str = np.where(true_labels == 0, "artifact", np.where(true_labels == 1, "reals", np.where(true_labels == 2, "highpm", np.where(true_labels == 3, "echo", False))))
     # pred_labels_str = np.where(pred_labels == 0, "artifact", np.where(pred_labels == 1, "reals", np.where(pred_labels == 2, "highpm", np.where(pred_labels == 3, "echo", False))))
-    
-    
-    candids, sci, ref, diff, params = get_images_from_db(cands)
+    if len(cands) == 0:
+        st.toast("No images found, try again with different parameters.")
+    candids, sci, ref, diff, params = get_images_from_db(cands, limit)
     
 except:
     st.write("No misclassified images found.")
@@ -201,7 +254,7 @@ with container:
     
     with col2:
         st.text("")
-        st.button("Clear incorrect", on_click = lambda: st.session_state["incorrect"].clear())
+        st.button("Clear form", on_click = lambda: submitted == False)
 
     if page == page_list[-1]:
         st.write(f"Showing: {img_ppage*(page-1)} - {len(candids)}                 Total: {len(candids)}")
@@ -294,11 +347,16 @@ def change_class(engine, candid, old_source, new_source):
 
 def find_label(candid, pred_csv = pred_csv):
     # st.toast(type(candid))
+    
     cand_row = pred_csv[pred_csv["candid"] == candid]
     pred = cand_row["Predicted_Label"].values[0]
-    true = cand_row["True_Label"].values[0]
-    
-    return(pred, true)
+    probs = cand_row[["reals", "highpm", "echo", "artifact"]]
+    if truth_check:
+        true = cand_row["True_Label"].values[0]
+    else:
+        true = None
+    return(pred, true, probs)
+
 
 def confusion_matrix():
     # Create a confusion matrix
@@ -344,8 +402,12 @@ def confusion_matrix():
 def page_load_model_misclass(page):
     if page == page_list[-1]: # if last page, then only load the remaining images
         for i in range(img_ppage*(page-1), len(candids)):
-            pred, true = find_label(candids[i])
-            st.header(f"{i} - predicted {pred} for {candids[i]} (true {true})")
+            pred, true, probs = find_label(candids[i])
+            if truth_check:
+                st.header(f"{i} - predicted {pred} for {candids[i]} (true {true})")
+            else:
+                st.header(f"{i} - predicted {pred} for {candids[i]}")
+            st.write(probs)
             fig = plot_triplet(i, candids[i], sci[i], ref[i], diff[i])
             st.pyplot(fig)
             # col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
@@ -374,8 +436,12 @@ def page_load_model_misclass(page):
             st.link_button("See in BYW", url = byworlds)
     else: # load 100 images per page
         for img in range(img_ppage*(page-1), img_ppage*page):
-            pred, true = find_label(candids[img])
-            st.header(f"{img} - predicted {pred} for {candids[i]} (true {true})")
+            pred, true, probs = find_label(candids[img])
+            if truth_check:
+                st.header(f"{img} - predicted {pred} for {candids[img]} (true {true})")
+            else:
+                st.header(f"{img} - predicted {pred} for {candids[img]}")
+            st.write(probs)
             fig = plot_triplet(img, candids[img], sci[img], ref[img], diff[img])
             st.pyplot(fig)
             # col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
@@ -404,7 +470,8 @@ def page_load_model_misclass(page):
             st.link_button("See in BYW", url = byworlds)
 
 st.title("Misclassified")
-confusion_matrix()
+if truth_check:
+    confusion_matrix()
 page_load_model_misclass(page)
 
     
