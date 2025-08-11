@@ -13,6 +13,7 @@ from streamlit_float import *
 plt.rcParams['figure.max_open_warning'] = 101 
 import seaborn as sns
 from matplotlib import colors
+import pyperclip
 
 st.set_page_config(page_title="Misclassified", page_icon="❌", layout = "wide")
 
@@ -91,9 +92,9 @@ def get_images_from_db(incorrect_candids, limit = 1000):
         diff_image_b = images.diff_image[i]
         candids.append(images.candid[i])
         
-        sci_cutout = np.flipud(fits.open(BytesIO(gzip.open(io.BytesIO(sci_image_b), 'rb').read()))[0].data)
-        ref_cutout = np.flipud(fits.open(BytesIO(gzip.open(io.BytesIO(ref_image_b), 'rb').read()))[0].data)
-        diff_cutout = np.flipud(fits.open(BytesIO(gzip.open(io.BytesIO(diff_image_b), 'rb').read()))[0].data)
+        sci_cutout = np.array(fits.open(BytesIO(gzip.open(io.BytesIO(sci_image_b), 'rb').read()))[0].data)
+        ref_cutout = np.array(fits.open(BytesIO(gzip.open(io.BytesIO(ref_image_b), 'rb').read()))[0].data)
+        diff_cutout = np.array(fits.open(BytesIO(gzip.open(io.BytesIO(diff_image_b), 'rb').read()))[0].data)
         sci_images.append(sci_cutout)
         ref_images.append(ref_cutout)
         diff_images.append(diff_cutout)
@@ -166,7 +167,7 @@ try:
                 source = st.pills("Sources", ['reals', 'highpm', 'echo', 'artifact'], selection_mode="single")
                 truth_check = st.checkbox("Include True_Label", value = False, help = "If True_Label is included, the CSV should have columns: candid, True_Label, Predicted_Label. If False, it should have columns: candid, Predicted_Label.")
                 limit = st.number_input("Limit number of images to display", max_value=1000, value=500, help="Limit the number of images to display from the uploaded CSV file.")
-            
+                binary = st.checkbox("Binary Classification", value = "False", help="If True, the CSV should only contain 'artifact' and 'reals' labels. If False, it can contain 'artifact', 'reals', 'highpm', and 'echo'.")
             with sliders:
                 st.write("Probability Thresholds")
                 artifact_slider = st.select_slider("Artifact", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for artifacts.")
@@ -183,20 +184,24 @@ try:
                 st.markdown(hide_elements, unsafe_allow_html=True)
             
             submitted = st.form_submit_button("Submit")
-            
+       
     if submitted and (uploaded_file is not None) and artifact_slider is not None:
         # st.session_state.expanded = False
         
-        # st.toast("File uploaded successfully.")
         pred_csv = pd.read_csv(uploaded_file)
+        st.toast("File uploaded successfully.")
         try:
-            if truth_check:
-                misclassify = pred_csv[(pred_csv['True_Label'] != pred_csv['Predicted_Label']) & (pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
+            if truth_check: # if testing only on labeled data
+                if binary:
+                    misclassify = pred_csv[(pred_csv['True_Label'] != pred_csv['Predicted_Label'])]
+                    
+                else:
+                    misclassify = pred_csv[(pred_csv['True_Label'] != pred_csv['Predicted_Label']) & (pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
+                    
                 cands = misclassify["candid"].values
                 pred_labels = misclassify["Predicted_Label"].values
-                true_labels = misclassify["True_Label"].values
+                true_labels = misclassify["True_Label"].values    
             else:
-                
                 if source:
                     pred_csv = pred_csv[(pred_csv['Predicted_Label'] == source) & (pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
                 else:
@@ -215,6 +220,7 @@ try:
     # pred_labels_str = np.where(pred_labels == 0, "artifact", np.where(pred_labels == 1, "reals", np.where(pred_labels == 2, "highpm", np.where(pred_labels == 3, "echo", False))))
     if len(cands) == 0:
         st.toast("No images found, try again with different parameters.")
+    
     candids, sci, ref, diff, params = get_images_from_db(cands, limit)
     
 except:
@@ -328,11 +334,23 @@ def get_id(engine, source):
     
     
 def change_class(engine, candid, old_source, new_source):
-    
+    st.toast("button clicked")
     if old_source == new_source: # if the candidate is already in the new source, then do nothing
         st.toast(f"Candidate {candid} is already classified as {new_source}. Removing from page.")
         record_df.drop(index = record_df.loc[record_df["candid"] == str(candid)].index, inplace = True)
         record_df.to_csv("log.csv", index = False)
+    if old_source == None:
+        with engine.connect() as con:
+            try:
+                insert_candidate(engine, new_source, candid)
+                st.toast(f"Reclassified candidate {candid} as {new_source}.")
+                
+            except:
+                st.toast(f"Could not reclassify candidate {candid} as {new_source}.")
+                st.stop()
+    
+    
+    
     else:
         delete_candidate(engine, old_source, candid) # delete the candidate from the original source
         with engine.connect() as con:
@@ -350,7 +368,11 @@ def find_label(candid, pred_csv = pred_csv):
     
     cand_row = pred_csv[pred_csv["candid"] == candid]
     pred = cand_row["Predicted_Label"].values[0]
-    probs = cand_row[["reals", "highpm", "echo", "artifact"]]
+    
+    if binary:
+        probs = cand_row[pred_csv.columns[:2]]
+    else:
+        probs = cand_row[pred_csv.columns[:4]]
     if truth_check:
         true = cand_row["True_Label"].values[0]
     else:
@@ -358,18 +380,27 @@ def find_label(candid, pred_csv = pred_csv):
     return(pred, true, probs)
 
 
-def confusion_matrix():
+def confusion_matrix(binary):
     # Create a confusion matrix
     
     col1, plot, col2 = st.columns([1, 2, 1])
     
     with plot:
-        cm = pd.crosstab(pred_csv['True_Label'], pred_csv['Predicted_Label'], rownames=['Actual'], colnames=['Predicted'], margins=False)
-        classes = pred_csv.columns[:4]
+        cm = pd.crosstab(pred_csv['True_Label'].values, pred_csv['Predicted_Label'].values, rownames=['Actual'], colnames=['Predicted'], margins=False)
+        
+        
+        if binary:
+            classes = pred_csv.columns[:2]
+        else:
+            classes = pred_csv.columns[:4]
+        
+        cm = cm.reindex(index=classes, columns=classes)
+        
+            
         fig, ax = plt.subplots(figsize=(8, 6))
         sns.heatmap(cm, annot=True, fmt="d", cmap=plt.cm.Blues, cbar=False,
                     annot_kws={"size": 12})
-        
+            
         cm = cm.values
         cm_norm = cm/cm.sum(axis = 1)
         cmap = plt.cm.Blues
@@ -400,6 +431,7 @@ def confusion_matrix():
 
 
 def page_load_model_misclass(page):
+    
     if page == page_list[-1]: # if last page, then only load the remaining images
         for i in range(img_ppage*(page-1), len(candids)):
             pred, true, probs = find_label(candids[i])
@@ -410,27 +442,27 @@ def page_load_model_misclass(page):
             st.write(probs)
             fig = plot_triplet(i, candids[i], sci[i], ref[i], diff[i])
             st.pyplot(fig)
-            # col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
-            # with col1:
-            #     if st.button("Artifact", key = i):
-            #         change_class(engine, candids[i], current_source, "artifact")
-            #         st.rerun()
-            # with col2:
-            #     if st.button("Real", key = i+1e5):
-            #         change_class(engine, candids[i], current_source, "reals")
-            #         st.rerun()
-            # with col3:
-            #     if st.button("Echo", key = i+2e5):
-            #         change_class(engine, candids[i], current_source, "echo")
-            #         st.rerun()
-            # with col4:
-            #     if st.button("High PM", key = i+3e5):
-            #         change_class(engine, candids[i], current_source, "highpm")
-            #         st.rerun()
+            col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
+            with col1:
+                if st.button("Artifact", key = i):
+                    change_class(engine, candids[i], None, "artifact")
+                    st.rerun()
+            with col2:
+                if st.button("Real", key = i+1e5):
+                    change_class(engine, candids[i], None, "reals")
+                    st.rerun()
+            with col3:
+                if st.button("Echo", key = i+2e5):
+                    change_class(engine, candids[i], None, "echo")
+                    st.rerun()
+            with col4:
+                if st.button("High PM", key = i+3e5):
+                    change_class(engine, candids[i], None, "highpm")
+                    st.rerun()
             # with col5:
             #     if st.button("Delete", key = i+4e5):
             #         delete_candidate(engine, current_source, candids[i], write = True)
-            #         st.rerun() 
+                    # st.rerun() 
             ra, dec = get_ra_dec(candids[i])
             byworlds = f"http://byw.tools/wiseview#ra={ra}&dec={dec}&size=176&band=2&speed=234.62&minbright=-2.3497&maxbright=963.1413&window=0.09958&diff_window=1&linear=1&color=&zoom=10&border=0&gaia=0&invert=0&maxdyr=0&scandir=0&neowise=0&diff=0&outer_epochs=0&unique_window=1&smooth_scan=0&shift=0&pmra=0&pmdec=0&synth_a=0&synth_a_sub=0&synth_a_ra=&synth_a_dec=&synth_a_w1=&synth_a_w2=&synth_a_pmra=0&synth_a_pmdec=0&synth_a_mjd=&synth_b=0&synth_b_sub=0&synth_b_ra=&synth_b_dec=&synth_b_w1=&synth_b_w2=&synth_b_pmra=0&synth_b_pmdec=0&synth_b_mjd="
             st.link_button("See in BYW", url = byworlds)
@@ -444,34 +476,42 @@ def page_load_model_misclass(page):
             st.write(probs)
             fig = plot_triplet(img, candids[img], sci[img], ref[img], diff[img])
             st.pyplot(fig)
-            # col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
-            # with col1:
-            #     if st.button("Artifact", key = img):
-            #         change_class(engine, candids[img], current_source, "artifact")
-            #         st.rerun()
-            # with col2:
-            #     if st.button("Real", key = img+1e5):
-            #         change_class(engine, candids[img], current_source, "reals")
-            #         st.rerun()
-            # with col3:
-            #     if st.button("Echo", key = img+2e5):
-            #         change_class(engine, candids[img], current_source, "echo")
-            #         st.rerun()
-            # with col4:
-            #     if st.button("High PM", key = img+3e5):
-            #         change_class(engine, candids[img], current_source, "highpm")
-            #         st.rerun()
+            col1, col2, col3, col4, col5 = st.columns([0.2, 0.2, 0.2, 0.2, 0.2])
+            with col1:
+                if st.button("Artifact", key = img):
+                    st.toast("test test")
+                    change_class(engine, candids[img], None, "artifact")
+                    # st.rerun()
+            with col2:
+                if st.button("Real", key = img+1e5):
+                    change_class(engine, candids[img], None, "reals")
+                    # st.rerun()
+            with col3:
+                if st.button("Echo", key = img+2e5):
+                    change_class(engine, candids[img], None, "echo")
+                    # st.rerun()
+            with col4:
+                if st.button("High PM", key = img+3e5):
+                    change_class(engine, candids[img], None, "highpm")
+                    # st.rerun()
             # with col5:
             #     if st.button("Delete", key = img+4e5):
             #         delete_candidate(engine, current_source, candids[img], write = True)
-            #         st.rerun()
+                    # st.rerun()
             ra, dec = get_ra_dec(candids[img])
             byworlds = f"http://byw.tools/wiseview#ra={ra}&dec={dec}&size=176&band=2&speed=234.62&minbright=-2.3497&maxbright=963.1413&window=0.09958&diff_window=1&linear=1&color=&zoom=10&border=0&gaia=0&invert=0&maxdyr=0&scandir=0&neowise=0&diff=0&outer_epochs=0&unique_window=1&smooth_scan=0&shift=0&pmra=0&pmdec=0&synth_a=0&synth_a_sub=0&synth_a_ra=&synth_a_dec=&synth_a_w1=&synth_a_w2=&synth_a_pmra=0&synth_a_pmdec=0&synth_a_mjd=&synth_b=0&synth_b_sub=0&synth_b_ra=&synth_b_dec=&synth_b_w1=&synth_b_w2=&synth_b_pmra=0&synth_b_pmdec=0&synth_b_mjd="
             st.link_button("See in BYW", url = byworlds)
 
 st.title("Misclassified")
 if truth_check:
-    confusion_matrix()
+    confusion_matrix(binary)
+
+if submitted and (uploaded_file is not None) and artifact_slider is not None:
+    st.write(pred_csv["Predicted_Label"].value_counts())
+    pyperclip.copy(pred_csv["candid"].values.tolist())
+    st.toast("Candids copied to clipboard")
+    
+
 page_load_model_misclass(page)
 
     
