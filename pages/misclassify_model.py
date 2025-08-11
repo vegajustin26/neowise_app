@@ -13,7 +13,7 @@ from streamlit_float import *
 plt.rcParams['figure.max_open_warning'] = 101 
 import seaborn as sns
 from matplotlib import colors
-import pyperclip
+# import pyperclip
 
 st.set_page_config(page_title="Misclassified", page_icon="❌", layout = "wide")
 
@@ -508,8 +508,8 @@ if truth_check:
 
 if submitted and (uploaded_file is not None) and artifact_slider is not None:
     st.write(pred_csv["Predicted_Label"].value_counts())
-    pyperclip.copy(pred_csv["candid"].values.tolist())
-    st.toast("Candids copied to clipboard")
+    # pyperclip.copy(pred_csv["candid"].values.tolist())
+    # st.toast("Candids copied to clipboard")
     
 
 page_load_model_misclass(page)
