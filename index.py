@@ -28,7 +28,7 @@ if st.session_state.logged_in:
 if st.session_state.logged_in:
     if st.session_state.username == "admin":
         pg = st.navigation(pages)
-    elif st.session_state.username = "Guest":
+    elif st.session_state.username == "Guest":
         del pages["Review"][-1]   
         del pages["Classify"][0:4]
     else:
