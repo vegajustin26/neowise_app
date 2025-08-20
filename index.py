@@ -21,12 +21,16 @@ if st.session_state.logged_in:
             st.Page("./pages/misclassify.py", title = "Misclassified (Manual Input)"),
             st.Page("./pages/misclassify_model.py", title = "Misclassified (Model)"),
             st.Page("./pages/duplicates.py", title = "Duplicates (across Multiple Classes)"),
+            st.Page("./pages/single_search.py", title = "Single Search"),
         ]
     }
 
 if st.session_state.logged_in:
     if st.session_state.username == "admin":
-        pg = st.navigation(pages)    
+        pg = st.navigation(pages)
+    elif st.session_state.username = "Guest":
+        del pages["Review"][-1]   
+        del pages["Classify"][0:4]
     else:
         del pages["Review"][-1]
         del pages["Classify"][1:4]
