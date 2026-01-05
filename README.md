@@ -1,4 +1,4 @@
-This is a web app that I built to visualize and classify transients in the neoWISE survey! All of the data is being queried from a (private) PostGreSQL database in real-time, where each (triplet) set of images has a unique candid (candidate id) associated with it. There are something like 50 million images in the database in total. Below is the quickstart that you'll see [on the website](https://neowise-classify.streamlit.app/):
+This is a web app that I built to visualize and classify transients (astronomical sources that vary in brightness over time) in the neoWISE survey! All of the data is being queried from a (private) PostGreSQL database in real-time, where each (triplet) set of images has a unique candid (candidate id) associated with it. There are something like 50 million images in the database in total. Below is the quickstart that you'll see [on the website](https://neowise-classify.streamlit.app/):
 
 ![](website.gif)
 
