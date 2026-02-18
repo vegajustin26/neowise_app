@@ -76,8 +76,10 @@ def get_images_from_db(incorrect_candids, limit = 1000):
     else:
         incorrect_candids = f"('{incorrect_candids[0]}')"
     
-    images = pd.read_sql_query(f"""
-        SELECT c.candid, c.sci_image, c.ref_image, c.diff_image from cutouts c INNER JOIN (SELECT DISTINCT(candid) from candidates) s ON c.candid = s.candid WHERE c.candid IN {incorrect_candids} LIMIT {limit};""", engine)
+    query = f"""
+        SELECT c.candid, c.sci_image, c.ref_image, c.diff_image from cutouts c INNER JOIN (SELECT candid from candidates) s ON c.candid = s.candid WHERE c.candid IN {incorrect_candids} LIMIT {limit};"""
+    
+    images = pd.read_sql_query(query, engine)
     
     sci_images = []
     ref_images = []
@@ -149,74 +151,75 @@ def plot_triplet(i, candid, sci, ref, diff):
 #     st.toast(f"from button {st.session_state.submitted}")
     # st.rerun()
 
-try:
+# try:
     # record_df = pd.read_csv("log.csv", dtype = str)
     # incorrect_candids = record_df["candid"].tolist()
     
     # dup_candids, source1, source2 = np.loadtxt("duplicates.txt", dtype = str, delimiter=",", unpack = True, ndmin = 1)
         
     # filtered_cands = list(set(incorrect_candids).difference(dup_candids))
-    st.markdown("#")
-    
-    with st.expander("Settings", expanded = st.session_state.expanded):
-        with st.form("search_form"):
-            st.text("To visualize misclassifications from the model, upload a CSV file with probabilities, candid, and Predicted_Label for testing, or include True_Label for training.")
-            uploaded_file = st.file_uploader("Choose a file")
-            buttons, sliders = st.columns([0.5, 0.5])
-            with buttons:
-                source = st.pills("Predicted sources", ['reals', 'highpm', 'echo', 'artifact'], selection_mode="multi")
-                truth_check = st.checkbox("Include True_Label", value = True, help = "If True_Label is included, the CSV should have columns: candid, True_Label, Predicted_Label. If False, it should have columns: candid, Predicted_Label.")
-                limit = st.number_input("Limit number of images to display", max_value=1000, value=500, help="Limit the number of images to display from the uploaded CSV file.")
-                binary = st.checkbox("Binary Classification", value = False, help="If True, the CSV should only contain 'artifact' and 'reals' labels. If False, it can contain 'artifact', 'reals', 'highpm', and 'echo'.")
-            with sliders:
-                st.write("Probability Thresholds")
-                artifact_slider = st.select_slider("Artifact", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for artifacts.")
-                reals_slider = st.select_slider("Reals", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for reals.")
-                echo_slider = st.select_slider("Echo", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for echoes.")
-                highpm_slider = st.select_slider("High PM", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for high proper motion objects.")
-                hide_elements = """
-            <style>
-                div[data-testid="stSliderTickBarMin"],
-                div[data-testid="stSliderTickBarMax"] {
-                    display: none;
-                }
-            </style>"""
-                st.markdown(hide_elements, unsafe_allow_html=True)
-            
-            submitted = st.form_submit_button("Submit")
-    # st.toast(f"submitted: {submitted}, file: {uploaded_file}")
-    if uploaded_file is not None:
-        # st.session_state.expanded = False
+st.markdown("#")
+
+with st.expander("Settings", expanded = st.session_state.expanded):
+    with st.form("search_form"):
+        st.text("To visualize misclassifications from the model, upload a CSV file with probabilities, candid, and Predicted_Label for testing, or include True_Label for training.")
+        uploaded_file = st.file_uploader("Choose a file")
+        buttons, sliders = st.columns([0.5, 0.5])
+        with buttons:
+            source = st.pills("Predicted sources", ['reals', 'highpm', 'echo', 'artifact'], selection_mode="multi")
+            truth_check = st.checkbox("Include True_Label", value = True, help = "If True_Label is included, the CSV should have columns: candid, True_Label, Predicted_Label. If False, it should have columns: candid, Predicted_Label.")
+            limit = st.number_input("Limit number of images to display", max_value=1000, value=500, help="Limit the number of images to display from the uploaded CSV file.")
+            binary = st.checkbox("Binary Classification", value = False, help="If True, the CSV should only contain 'artifact' and 'reals' labels. If False, it can contain 'artifact', 'reals', 'highpm', and 'echo'.")
+        with sliders:
+            st.write("Probability Thresholds")
+            artifact_slider = st.select_slider("Artifact", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for artifacts.")
+            reals_slider = st.select_slider("Reals", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for reals.")
+            echo_slider = st.select_slider("Echo", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for echoes.")
+            highpm_slider = st.select_slider("High PM", options = [i/20 for i in range(0, 21, 1)], value = (0.0, 1.0), help="Set the probability threshold for high proper motion objects.")
+            hide_elements = """
+        <style>
+            div[data-testid="stSliderTickBarMin"],
+            div[data-testid="stSliderTickBarMax"] {
+                display: none;
+            }
+        </style>"""
+            st.markdown(hide_elements, unsafe_allow_html=True)
         
-        pred_csv = pd.read_csv(uploaded_file)
-        st.toast("File uploaded successfully.")
-        try:
-            if truth_check: # if testing only on labeled data
-                if binary:
-                    misclassify = pred_csv[(pred_csv['True_Label'] != pred_csv['Predicted_Label'])]
-                    
-                else:
-                    if source:
-                        misclassify = pred_csv[(pred_csv['Predicted_Label'].isin(source)) & (pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
-                    else:
-                        misclassify = pred_csv[(pred_csv['True_Label'] != pred_csv['Predicted_Label']) & (pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
+        submitted = st.form_submit_button("Submit")
+# st.toast(f"submitted: {submitted}, file: {uploaded_file}")
+if uploaded_file is not None:
+    # st.session_state.expanded = False
+    
+    pred_csv = pd.read_csv(uploaded_file)
+    st.toast("File uploaded successfully.")
+    try:
+        if truth_check: # if testing only on labeled data
+            if binary:
+                misclassify = pred_csv[(pred_csv['True_Label'] != pred_csv['Predicted_Label'])]
                 
-                cands = misclassify["candid"].values
-                pred_labels = misclassify["Predicted_Label"].values
-                true_labels = misclassify["True_Label"].values    
             else:
                 if source:
-                    pred_csv = pred_csv[(pred_csv['Predicted_Label'].isin(source)) & (pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
+                    misclassify = pred_csv[(pred_csv['Predicted_Label'].isin(source)) & (pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
                 else:
-                    pred_csv = pred_csv[(pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
-                    
-                cands = pred_csv["candid"].values
+                    misclassify = pred_csv[(pred_csv['True_Label'] != pred_csv['Predicted_Label']) & (pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
+        
+            cands = misclassify["candid"].values.tolist()
+            pred_labels = misclassify["Predicted_Label"].values
+            true_labels = misclassify["True_Label"].values   
+            
+        else:
+            if source:
+                pred_csv = pred_csv[(pred_csv['Predicted_Label'].isin(source)) & (pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
+            else:
+                pred_csv = pred_csv[(pred_csv["artifact"].between(artifact_slider[0], artifact_slider[1])) & (pred_csv["reals"].between(reals_slider[0], reals_slider[1])) & (pred_csv["echo"].between(echo_slider[0], echo_slider[1])) & (pred_csv["highpm"].between(highpm_slider[0], highpm_slider[1]))]
+            
+            
+            cands = pred_csv["candid"].values.tolist()
+            pred_labels = pred_csv["Predicted_Label"].values
                 
-                pred_labels = pred_csv["Predicted_Label"].values
-                
-        except:
-            st.write("Format of CSV is incorrect. Please upload a CSV with the following columns: candid, True_Label, Predicted_Label.")
-            st.stop()
+    except:
+        st.write("Format of CSV is incorrect. Please upload a CSV with the following columns: candid, True_Label, Predicted_Label.")
+        st.stop()
     
     # artifact is 0, reals is 1, highpm is 2, echo is 3
     # true_labels_str = np.where(true_labels == 0, "artifact", np.where(true_labels == 1, "reals", np.where(true_labels == 2, "highpm", np.where(true_labels == 3, "echo", False))))
@@ -226,9 +229,9 @@ try:
     
     candids, sci, ref, diff, params = get_images_from_db(cands, limit)
     
-except:
-    st.write("No misclassified images found.")
-    st.stop()
+# except:
+#     st.write("No misclassified images found.")
+#     st.stop()
 
 keys = ["incorrect"]
 
@@ -511,7 +514,7 @@ def page_load_model_misclass(page):
 st.title("Misclassified")
 if truth_check:
     confusion_matrix(binary)
-    
+
 if submitted and (uploaded_file is not None) and artifact_slider is not None:
     st.write(pred_csv["Predicted_Label"].value_counts())
     # pyperclip.copy(pred_csv["candid"].values.tolist())
